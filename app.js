@@ -8,28 +8,24 @@
   const stageArea = document.getElementById('stageArea');
   const installBtn = document.getElementById('installBtn');
   const flash = document.getElementById('flash');
-  const arReadout = document.getElementById('arReadout');
-  const guideReadout = document.getElementById('guideReadout');
+  const guideLabel = document.getElementById('guideLabel');
+  const aspectLabel = document.getElementById('aspectLabel');
   const orientRow = document.getElementById('orientRow');
   const stateOverlay = document.getElementById('stateOverlay');
   const stateMessage = document.getElementById('stateMessage');
   const stateRetry = document.getElementById('stateRetry');
-  const previewBar = document.getElementById('previewBar');
-  const previewThumb = document.getElementById('previewThumb');
-  const downloadLink = document.getElementById('downloadLink');
-  const dismissPreview = document.getElementById('dismissPreview');
   const shutterBtn = document.getElementById('shutter');
   const switchCamBtn = document.getElementById('switchCam');
   const includeGuidesBtn = document.getElementById('includeGuidesBtn');
+  const lastShotBtn = document.getElementById('lastShotBtn');
+  const previewThumb = document.getElementById('previewThumb');
+  const previewLarge = document.getElementById('previewLarge');
+  const downloadLink = document.getElementById('downloadLink');
+  const scrim = document.getElementById('scrim');
 
-  const GUIDE_NAMES = {
-    thirds: 'Rule of Thirds',
-    phi: 'Phi Grid',
-    spiral: 'Golden Spiral',
-    diagonal: 'Diagonal Method',
-    symmetry: 'Symmetry',
-    frame: 'Center & Frame',
-    none: 'No guide'
+  const GUIDE_SHORT = {
+    thirds: 'Thirds', phi: 'Phi', spiral: 'Spirale',
+    diagonal: 'Diagonales', symmetry: 'Symétrie', frame: 'Cadre', none: 'Aucun'
   };
 
   const state = {
@@ -51,6 +47,31 @@
     '16:9': 16 / 9
   };
 
+  // ---------------- sheet / menu handling ----------------
+  const sheets = document.querySelectorAll('.sheet');
+  const menuToggles = document.querySelectorAll('.menu-toggle[data-sheet]');
+
+  function closeSheets() {
+    sheets.forEach((s) => s.classList.remove('open'));
+    menuToggles.forEach((b) => b.classList.remove('active'));
+    scrim.classList.remove('visible');
+  }
+
+  function openSheet(id, toggleBtn) {
+    const isOpen = document.getElementById(id).classList.contains('open');
+    closeSheets();
+    if (!isOpen) {
+      document.getElementById(id).classList.add('open');
+      if (toggleBtn) toggleBtn.classList.add('active');
+      scrim.classList.add('visible');
+    }
+  }
+
+  menuToggles.forEach((btn) => {
+    btn.addEventListener('click', () => openSheet(btn.dataset.sheet, btn));
+  });
+  scrim.addEventListener('click', closeSheets);
+
   // ---------------- camera lifecycle ----------------
   function showState(msg, showRetry) {
     stateMessage.textContent = msg;
@@ -69,7 +90,7 @@
     }
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      showState("Ce navigateur ne permet pas d'accéder à la caméra ici. Ouvre cette page en HTTPS (ex. via Netlify) plutôt qu'en local sans certificat.", false);
+      showState("Ce navigateur ne permet pas d'accéder à la caméra ici. Ouvre cette page en HTTPS plutôt qu'en local sans certificat.", false);
       return;
     }
 
@@ -77,8 +98,8 @@
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: state.facing,
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
+          width: { ideal: 3840 },
+          height: { ideal: 2160 }
         },
         audio: false
       });
@@ -92,9 +113,9 @@
       if (err && err.name === 'NotAllowedError') {
         msg = 'Accès caméra refusé. Autorise la caméra pour ce site dans les réglages du navigateur, puis réessaie.';
       } else if (err && err.name === 'NotFoundError') {
-        msg = "Aucune caméra détectée sur cet appareil.";
+        msg = 'Aucune caméra détectée sur cet appareil.';
       } else if (err && err.name === 'NotReadableError') {
-        msg = "La caméra est déjà utilisée par une autre application.";
+        msg = 'La caméra est déjà utilisée par une autre application.';
       }
       showState(msg, true);
     }
@@ -134,12 +155,14 @@
     viewport.classList.add('letterboxed');
   }
 
-  document.querySelectorAll('.aspect-btn').forEach((btn) => {
+  document.querySelectorAll('#aspectSheet .chip').forEach((btn) => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.aspect-btn').forEach((b) => b.classList.remove('active'));
+      document.querySelectorAll('#aspectSheet .chip').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
       state.aspect = btn.dataset.aspect;
+      aspectLabel.textContent = state.aspect === 'full' ? 'Plein' : state.aspect;
       handleResize();
+      closeSheets();
     });
   });
 
@@ -153,7 +176,6 @@
     canvas.style.width = w + 'px';
     canvas.style.height = h + 'px';
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    arReadout.textContent = simplifyRatio(w / h);
     renderGuides();
   }
 
@@ -163,16 +185,6 @@
   }
   window.addEventListener('resize', handleResize);
   window.addEventListener('orientationchange', () => setTimeout(handleResize, 200));
-
-  function simplifyRatio(ar) {
-    const candidates = [[1, 1], [3, 2], [2, 3], [4, 3], [3, 4], [16, 9], [9, 16], [5, 4], [4, 5]];
-    let best = candidates[0], bestDiff = Infinity;
-    candidates.forEach(([a, b]) => {
-      const diff = Math.abs(a / b - ar);
-      if (diff < bestDiff) { bestDiff = diff; best = [a, b]; }
-    });
-    return bestDiff < 0.04 ? best[0] + ':' + best[1] : ar.toFixed(2) + ':1';
-  }
 
   // ---------------- guide geometry (shared by live view + capture) ----------------
   function footOfPerpendicular(px, py, ax, ay, bx, by) {
@@ -288,17 +300,18 @@
     const W = viewport.clientWidth, H = viewport.clientHeight;
     ctx.clearRect(0, 0, W, H);
     drawGuides(ctx, W, H, state.guide, state.orient, state.color, state.opacity);
-    guideReadout.textContent = GUIDE_NAMES[state.guide];
+    guideLabel.textContent = GUIDE_SHORT[state.guide];
     orientRow.classList.toggle('visible', state.guide === 'spiral');
   }
 
   // ---------------- controls ----------------
-  document.querySelectorAll('.guide-btn').forEach((btn) => {
+  document.querySelectorAll('#guideSheet .chip').forEach((btn) => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.guide-btn').forEach((b) => b.classList.remove('active'));
+      document.querySelectorAll('#guideSheet .chip').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
       state.guide = btn.dataset.guide;
       renderGuides();
+      if (state.guide !== 'spiral') closeSheets();
     });
   });
 
@@ -311,9 +324,9 @@
     });
   });
 
-  document.querySelectorAll('.swatch').forEach((btn) => {
+  document.querySelectorAll('#styleSheet .swatch').forEach((btn) => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.swatch').forEach((b) => b.classList.remove('active'));
+      document.querySelectorAll('#styleSheet .swatch').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
       state.color = btn.dataset.color;
       renderGuides();
@@ -327,11 +340,9 @@
 
   includeGuidesBtn.addEventListener('click', () => {
     state.includeGuidesInPhoto = !state.includeGuidesInPhoto;
-    includeGuidesBtn.style.color = state.includeGuidesInPhoto ? 'var(--amber)' : 'var(--text-dim)';
-    includeGuidesBtn.style.borderColor = state.includeGuidesInPhoto ? 'var(--amber)' : 'var(--border)';
+    includeGuidesBtn.classList.toggle('active', state.includeGuidesInPhoto);
   });
-  includeGuidesBtn.style.color = 'var(--amber)';
-  includeGuidesBtn.style.borderColor = 'var(--amber)';
+  includeGuidesBtn.classList.add('active');
 
   // ---------------- capture ----------------
   function fireFlash() {
@@ -361,7 +372,7 @@
       sy = (videoH - sh) / 2;
     }
 
-    const maxW = 1920;
+    const maxW = 3840;
     const outW = Math.min(maxW, sw);
     const outH = outW / viewportAR;
 
@@ -379,15 +390,18 @@
       if (!blob) return;
       const url = URL.createObjectURL(blob);
       previewThumb.src = url;
+      previewLarge.src = url;
+      lastShotBtn.classList.add('has-shot');
+      lastShotBtn.disabled = false;
       downloadLink.href = url;
       const stamp = new Date().toISOString().replace(/[:.]/g, '-');
       downloadLink.download = `framecraft-${stamp}.jpg`;
-      previewBar.classList.add('visible');
-    }, 'image/jpeg', 0.92);
+    }, 'image/jpeg', 0.95);
   });
 
-  dismissPreview.addEventListener('click', () => {
-    previewBar.classList.remove('visible');
+  lastShotBtn.addEventListener('click', () => {
+    if (lastShotBtn.disabled) return;
+    openSheet('previewSheet', null);
   });
 
   // ---------------- install prompt ----------------
@@ -412,7 +426,6 @@
     deferredPrompt = null;
   });
 
-  // already installed / running standalone: never show the button
   if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
     installBtn.hidden = true;
   }
