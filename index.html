@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Framecraft Camera</title>
+<meta name="theme-color" content="#121210">
+<meta name="description" content="Live camera viewfinder with composition guides.">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="brand"><span class="dot"></span>Framecraft</div>
+    <button class="install-btn" id="installBtn" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 19h16"/></svg>
+      Installer
+    </button>
+    <div class="readout mono">
+      <span id="guideReadout">Rule of Thirds</span>
+      <b id="arReadout">—</b>
+    </div>
+  </header>
+
+  <main id="stageArea">
+    <div class="viewport" id="viewport">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas class="guide-canvas" id="guideCanvas"></canvas>
+      <div class="flash" id="flash"></div>
+
+      <div class="bracket tl"></div>
+      <div class="bracket tr"></div>
+      <div class="bracket bl"></div>
+      <div class="bracket br"></div>
+
+      <div class="orient-row" id="orientRow">
+        <button class="orient-btn active" data-orient="0" title="Eye bottom-right">↘</button>
+        <button class="orient-btn" data-orient="1" title="Eye bottom-left">↙</button>
+        <button class="orient-btn" data-orient="2" title="Eye top-right">↗</button>
+        <button class="orient-btn" data-orient="3" title="Eye top-left">↖</button>
+      </div>
+
+      <div class="state-overlay" id="stateOverlay">
+        <p id="stateMessage">Démarrage de la caméra…</p>
+        <button id="stateRetry">Réessayer</button>
+      </div>
+
+      <div class="preview-bar" id="previewBar">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <img class="preview-thumb" id="previewThumb" alt="Photo capturée">
+          <span class="mono" style="font-size:0.7rem; color:var(--text-dim);">Capturée</span>
+        </div>
+        <div class="preview-actions">
+          <a class="link-btn" id="downloadLink" download="framecraft-photo.jpg">Télécharger</a>
+          <button class="ghost" id="dismissPreview">Fermer</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="dock">
+    <div class="aspect-row" id="aspectRow">
+      <button class="aspect-btn active" data-aspect="full">Plein écran</button>
+      <button class="aspect-btn" data-aspect="1:1">1:1</button>
+      <button class="aspect-btn" data-aspect="4:3">4:3</button>
+      <button class="aspect-btn" data-aspect="3:2">3:2</button>
+      <button class="aspect-btn" data-aspect="16:9">16:9</button>
+    </div>
+
+    <div class="guide-row" id="guideRow">
+      <button class="guide-btn active" data-guide="thirds">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="2" width="20" height="20"/><line x1="9" y1="2" x2="9" y2="22"/><line x1="15" y1="2" x2="15" y2="22"/><line x1="2" y1="9" x2="22" y2="9"/><line x1="2" y1="15" x2="22" y2="15"/></svg>
+        Thirds
+      </button>
+      <button class="guide-btn" data-guide="phi">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="2" width="20" height="20"/><line x1="9.6" y1="2" x2="9.6" y2="22"/><line x1="14.4" y1="2" x2="14.4" y2="22"/><line x1="2" y1="9.6" x2="22" y2="9.6"/><line x1="2" y1="14.4" x2="22" y2="14.4"/></svg>
+        Phi
+      </button>
+      <button class="guide-btn" data-guide="spiral">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M20 12a8 8 0 1 1-8-8"/><path d="M12 4a5 5 0 1 1-5 5"/><path d="M7 9a2.6 2.6 0 1 1 2.6 2.6"/></svg>
+        Spirale
+      </button>
+      <button class="guide-btn" data-guide="diagonal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="2" width="20" height="20"/><line x1="2" y1="2" x2="22" y2="22"/><line x1="22" y1="2" x2="12" y2="12"/><line x1="2" y1="22" x2="12" y2="12"/></svg>
+        Diagonales
+      </button>
+      <button class="guide-btn" data-guide="symmetry">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="2" width="20" height="20"/><line x1="12" y1="2" x2="12" y2="22" stroke-dasharray="2 2"/><line x1="2" y1="12" x2="22" y2="12" stroke-dasharray="2 2"/></svg>
+        Symétrie
+      </button>
+      <button class="guide-btn" data-guide="frame">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="2" width="20" height="20"/><rect x="6" y="6" width="12" height="12"/><line x1="12" y1="10.5" x2="12" y2="13.5"/><line x1="10.5" y1="12" x2="13.5" y2="12"/></svg>
+        Cadre
+      </button>
+      <button class="guide-btn" data-guide="none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="2" width="20" height="20"/><line x1="4" y1="20" x2="20" y2="4"/></svg>
+        Aucun
+      </button>
+    </div>
+
+    <div class="control-row">
+      <div class="swatch-row">
+        <button class="swatch active" data-color="#e8a33d" style="background:#e8a33d"></button>
+        <button class="swatch" data-color="#f4f1ea" style="background:#f4f1ea"></button>
+        <button class="swatch" data-color="#e2543a" style="background:#e2543a"></button>
+      </div>
+      <input type="range" id="opacitySlider" min="20" max="100" value="85">
+    </div>
+
+    <div class="shutter-row">
+      <button class="icon-btn" id="switchCam" title="Changer de caméra">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 2l4 4-4 4"/><path d="M3 12v-2a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 12v2a4 4 0 0 1-4 4H3"/></svg>
+      </button>
+      <button class="shutter" id="shutter" title="Prendre la photo"></button>
+      <button class="icon-btn" id="includeGuidesBtn" title="Inclure les guides sur la photo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
